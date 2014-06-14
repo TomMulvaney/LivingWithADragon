@@ -10,6 +10,8 @@ public class StoryPage : MonoBehaviour
 	[SerializeField]
 	private Texture2D m_background;
 	[SerializeField]
+	private AudioClip m_audio;
+	[SerializeField]
 	private string m_text;
 
 	public Texture2D GetForeground()
@@ -25,6 +27,11 @@ public class StoryPage : MonoBehaviour
 	public Texture2D GetBackground()
 	{
 		return m_background;
+	}
+
+	public AudioClip()
+	{
+		return m_audio;
 	}
 
 	public string GetText()

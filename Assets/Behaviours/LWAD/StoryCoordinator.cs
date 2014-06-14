@@ -44,6 +44,11 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	[SerializeField]
 	private AudioSource m_audioSource;
 
+	[SerializeField]
+	private bool m_imageScaleTweens;
+	[SerializeField]
+	private bool m_textScaleTweens;
+
 	int m_currentPage = 1;
 	int m_currentChapterStart = 1;
 
@@ -65,8 +70,54 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private bool m_startOnEmotions;
 #endif
 
+	void PlayFun()
+	{
+		Debug.Log ("PlayFun()");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_SCARY_STOP");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_CUTE_STOP");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_FUN");
+	}
+
+	void PlayScary()
+	{
+		Debug.Log ("PlayScary()");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_FUN_STOP");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_CUTE_STOP");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_SCARY");
+	}
+
+	void PlayCute()
+	{
+		Debug.Log ("PlayCute()");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_SCARY_STOP");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_FUN_STOP");
+		WingroveAudio.WingroveRoot.Instance.PostEvent ("MUSIC_CUTE");
+	}
+
+#if UNITY_EDITOR
+	void Update()
+	{
+		if (Input.GetKeyDown (KeyCode.F)) 
+		{
+			PlayFun();
+		}
+
+		if (Input.GetKeyDown (KeyCode.S)) 
+		{
+			PlayScary();
+		}
+
+		if (Input.GetKeyDown (KeyCode.C)) 
+		{
+			PlayCute();
+		}
+	}
+#endif
+
 	void Awake()
 	{
+		m_goToEmotionButton.Off (true);
+
 		m_swipeDetect.SwipedLeft += OnSwipeLeft;
 		m_swipeDetect.SwipedRight += OnSwipeRight;
 
@@ -146,13 +197,16 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		yield return StartCoroutine (StoryInfo.WaitForInstance());
 
 		//Debug.Log (String.Format("{0}_{1}_{2}", StoryInfo.Instance.GetTitle(), m_currentPage, m_emotion.ToString()));
-		ChangeBoth (FindStoryPage ());
+
+		PlayCute ();
+
+		StartCoroutine(ChangeBoth (FindStoryPage ()));
 	}
 
-	void ChangeBoth(StoryPage page)
+	IEnumerator ChangeBoth(StoryPage page)
 	{
-		StartCoroutine(ChangeImage (page));
 		StartCoroutine(ChangeText (page));
+		yield return StartCoroutine(ChangeImage (page));
 	}
 
 	IEnumerator ChangeText(StoryPage page)
@@ -163,20 +217,49 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		{
 			m_audioSource.clip = page.GetAudio();
 
-			float audioPanelAlpha = m_audioSource.clip != null ? 1 : 0;
-			TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
-			m_audioButton.EnableCollider(Mathf.Approximately(audioPanelAlpha, 1));
+			bool enableAudioButton = m_audioSource.clip != null;
 
-			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
+			m_audioButton.EnableCollider(enableAudioButton);
+
+			if(m_textScaleTweens)
+			{
+				Vector3 audioButtonScale = enableAudioButton ? Vector3.one : Vector3.zero;
+				TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
+				
+				TweenScale.Begin(m_textLabel.gameObject, StoryInfo.scaleDuration, Vector3.zero);
+
+				yield return new WaitForSeconds(StoryInfo.scaleDuration + m_fadeInDelay);
+			}
+			else
+			{
+				float audioPanelAlpha = enableAudioButton ? 1 : 0;
+				TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+				
+				TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
+
+				yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+			}
 			
-			yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
-
 			m_textLabel.text = page.GetText ();
 
-			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+			if(m_textScaleTweens)
+			{
+				TweenScale.Begin(m_textLabel.gameObject, StoryInfo.fadeDuration, Vector3.one);
+			}
+			else
+			{
+				TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+			}
 		}
 
 		yield break;
+	}
+
+	void ScaleImages(Vector3 scale)
+	{
+		TweenScale.Begin (m_foreground.gameObject, StoryInfo.scaleDuration, scale);
+		TweenScale.Begin (m_midground.gameObject, StoryInfo.scaleDuration, scale);
+		TweenScale.Begin (m_background.gameObject, StoryInfo.scaleDuration, scale);
 	}
 
 	IEnumerator ChangeImage(StoryPage page)
@@ -192,8 +275,17 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 				if(m_foreground.mainTexture != newForegroundTex && m_foreground.mainTexture != null)
 				{
 					hasFaded = true;
-					TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 0);
-					yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+
+					if(m_imageScaleTweens)
+					{
+						ScaleImages(Vector3.zero);
+						yield return new WaitForSeconds(StoryInfo.scaleDuration + m_fadeInDelay);
+					}
+					else
+					{
+						TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 0);
+						yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+					}
 				}
 
 				m_foreground.mainTexture = newForegroundTex;
@@ -202,7 +294,14 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 				if(hasFaded)
 				{
-					TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 1);
+					if(m_imageScaleTweens)
+					{
+						ScaleImages(Vector3.one);
+					}
+					else
+					{
+						TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 1);
+					}
 				}
 
 				string pageNum = Regex.Match(page.gameObject.name, @"\d+").Value;
@@ -231,6 +330,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	IEnumerator GoEmotionSelect()
 	{
+		m_goToEmotionButton.Off (false);
+
 		TextCam (false);
 		TweenAlpha.Begin (m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
 
@@ -247,21 +348,34 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	{
 		Debug.Log ("PRESSED BACK");
 
+		StartCoroutine (OnPressBackCo ());
+	}
+
+	bool m_hasEndedChapter;
+	int m_firstChapterEnd;
+
+	IEnumerator OnPressBackCo()
+	{
+		if (m_currentPage == m_firstChapterEnd) 
+		{
+			m_emotion = Emotion.Cute;
+		}
+
 		--m_currentPage;
-
+		
 		StoryPage page = FindStoryPage ();
-
+		
 		StartCoroutine(ChangeText (page));
-
+		
 		int imagePage = m_currentPage;
 		while (!page.HasImages() && imagePage > 0)
 		{
 			--imagePage;
 			page = FindStoryPage(imagePage);
 		}
-
-		StartCoroutine(ChangeImage (page));
-
+		
+		yield return StartCoroutine(ChangeImage (page));
+		
 		StartCoroutine (GoStoryPage ());
 	}
 	
@@ -269,24 +383,51 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	{
 		m_emotion = (Emotion)button.GetInt();
 
+		switch (m_emotion)
+		{
+		case Emotion.Fun:
+			PlayFun();
+			break;
+		case Emotion.Scary:
+			PlayScary();
+			break;
+		case Emotion.Cute:
+			PlayCute();
+			break;
+		}
+
+		StartCoroutine (OnChooseEmotionCo ());
+	}
+
+	IEnumerator OnChooseEmotionCo()
+	{
 		++m_currentPage;
 
-		ChangeBoth (FindStoryPage ());
-
+		TweenAlpha.Begin (m_emotionPanel.gameObject, StoryInfo.fadeDuration, 0);
+		
+		//yield return new WaitForSeconds (StoryInfo.fadeDuration);
+		
+		yield return StartCoroutine(ChangeBoth (FindStoryPage ()));
+		
 		StartCoroutine (GoStoryPage ());
 	}
 
 	IEnumerator GoStoryPage()
 	{
+		if (m_currentChapterStart > 1) 
+		{
+			m_goToEmotionButton.On ();
+		}
+
 		EmotionCam (false);
 		
 		TweenAlpha.Begin (m_emotionPanel.gameObject, StoryInfo.fadeDuration, 0);
 		
 		yield return new WaitForSeconds (StoryInfo.fadeDuration);
 		
-		TweenAlpha.Begin (m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+		//TweenAlpha.Begin (m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
 		
-		yield return new WaitForSeconds (StoryInfo.fadeDuration);
+		//yield return new WaitForSeconds (StoryInfo.fadeDuration);
 		
 		TextCam (true);
 	}
@@ -321,11 +462,16 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		if(page == null)
 		{
+			if(!m_hasEndedChapter)
+			{
+				m_hasEndedChapter = true;
+				m_firstChapterEnd = m_currentPage;
+			}
 			StartCoroutine (GoEmotionSelect ());
 		}
 		else 
 		{
-			ChangeBoth(page);
+			StartCoroutine(ChangeBoth(page));
 		}
 
 		yield break;
@@ -355,41 +501,4 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		GUILayout.Label ("Page: " + m_currentPage);
 		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
 	}
-
-	/*
-	IEnumerator ChangePage(StoryPage page)
-	{
-		Debug.Log ("ChangePage(): " + page);
-		if (page != null) 
-		{
-			if (page.HasImages ()) 
-			{
-				if(m_foreground.mainTexture != null)
-				{
-					TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 0);
-				}
-
-				m_currentChapterStart = m_currentPage;
-			}
-				
-			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
-
-			yield return new WaitForSeconds(StoryInfo.fadeDuration + 0.2f);
-
-			m_textLabel.text = page.GetText ();
-
-			if(page.HasImages())
-			{
-				m_foreground.mainTexture = page.GetForeground ();
-				m_midground.mainTexture = page.GetMidground ();
-				m_background.mainTexture = page.GetBackground ();
-			}
-
-			TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 1);
-			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
-		}
-
-		yield break;
-	}
-	*/
 }

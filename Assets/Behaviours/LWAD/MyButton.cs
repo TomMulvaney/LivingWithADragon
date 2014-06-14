@@ -59,6 +59,9 @@ public class MyButton : MonoBehaviour
         StartCoroutine("UpdateFollowerPosition");
     }
     
+	// ScaleChange Variables
+	[SerializeField]
+	private bool m_changeScale;
     
     // SpriteChange Variables and Method
     [SerializeField]
@@ -102,14 +105,14 @@ public class MyButton : MonoBehaviour
 		} 
 		else 
 		{
-			iTween.ColorTo (m_pressableButton.gameObject, new Color (m_pressableButton.color.r, m_pressableButton.color.g, m_pressableButton.color.b, 0), StoryInfo.fadeDuration);
+			TweenAlpha.Begin(gameObject, StoryInfo.fadeDuration, 0);
 		}
 	}
 
 	public void On()
 	{
-		collider.enabled = false;
-		iTween.ColorTo (m_pressableButton.gameObject, new Color (1, 1, 1, 1), StoryInfo.fadeDuration);
+		collider.enabled = true;
+		TweenAlpha.Begin(gameObject, StoryInfo.fadeDuration, 1);
 	}
 
     public void AddPressedAudio(string audioEvent)
@@ -236,6 +239,11 @@ public class MyButton : MonoBehaviour
             m_positionTweenArgs ["position"] = m_pressedLocation;
             iTween.MoveTo(m_pressableButton.gameObject, m_positionTweenArgs);
         }
+
+		if (m_changeScale) 
+		{
+			iTween.ScaleTo(gameObject, Vector3.one * 0.8f, m_pressDuration);
+		}
         
         if (m_changeSprite)
         {
@@ -278,6 +286,11 @@ public class MyButton : MonoBehaviour
             m_positionTweenArgs ["position"] = m_unpressedLocation;
             iTween.MoveTo(m_pressableButton.gameObject, m_positionTweenArgs);
         }
+
+		if (m_changeScale) 
+		{
+			iTween.ScaleTo(gameObject, Vector3.one, m_pressDuration);
+		}
         
         yield return new WaitForSeconds(m_pressDuration);
         

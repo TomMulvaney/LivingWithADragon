@@ -22,4 +22,12 @@ public class StoryInfo : Singleton<StoryInfo>
 			return 0.25f;
 		}
 	}
+
+	public static float scaleDuration
+	{
+		get
+		{
+			return 0.15f;
+		}
+	}
 }

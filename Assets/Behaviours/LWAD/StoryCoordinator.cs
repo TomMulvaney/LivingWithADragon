@@ -26,6 +26,13 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private MyButton m_goToEmotionButton;
 
 	[SerializeField]
+	private UIPanel m_audioPanel;
+	[SerializeField]
+	private MyButton m_audioButton;
+	[SerializeField]
+	private UISlider m_audioSlider;
+
+	[SerializeField]
 	private UICamera m_emotionCamera;
 	[SerializeField]
 	private UIPanel m_emotionPanel;
@@ -67,6 +74,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		m_goToEmotionButton.Unpressing += OnClickGoToEmotion;
 
+		m_audioButton.Unpressing += OnPressAudio;
+
 		foreach (MyButton button in m_emotionButtons) 
 		{
 			button.Unpressing += OnChooseEmotion;
@@ -88,6 +97,38 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 			TextCam (false);
 		}
 #endif
+	}
+
+	void OnPressAudio(MyButton button)
+	{
+		if (m_audioSource.isPlaying) 
+		{
+			StopAudio();
+		}
+		else if (m_audioSource.clip != null) 
+		{
+			m_audioSource.Play();
+			m_audioProgress = 0;
+			StartCoroutine("UpdateAudioBar");
+		}
+	}
+
+	void StopAudio()
+	{
+		m_audioSource.Stop();
+		StopCoroutine ("UpdateAudioBar");
+		m_audioProgress = 0;
+		m_audioSlider.value = 0;
+	}
+
+	float m_audioProgress = 0;
+
+	IEnumerator UpdateAudioBar()
+	{
+		m_audioSlider.value = m_audioProgress / m_audioSource.clip.length;
+		m_audioProgress += Time.deltaTime;
+		yield return null;
+		StartCoroutine ("UpdateAudioBar");
 	}
 
 	void EmotionCam(bool enable)
@@ -120,6 +161,12 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		if (page != null) 
 		{
+			m_audioSource.clip = page.GetAudio();
+
+			float audioPanelAlpha = m_audioSource.clip != null ? 1 : 0;
+			TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+			m_audioButton.EnableCollider(Mathf.Approximately(audioPanelAlpha, 1));
+
 			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
 			
 			yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
@@ -176,6 +223,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void OnClickGoToEmotion(MyButton button)
 	{
+		StopAudio ();
+
 		m_currentPage = m_currentChapterStart - 1;
 		StartCoroutine(GoEmotionSelect ());
 	}
@@ -244,12 +293,16 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void OnSwipeLeft(TurnSwipeDetect swipeDetect)
 	{
+		StopAudio ();
+
 		++m_currentPage;
 		StartCoroutine (TurnPage ());
 	}
 
 	void OnSwipeRight(TurnSwipeDetect swipeDetect)
 	{
+		StopAudio ();
+
 		--m_currentPage;
 
 		if (m_currentPage < 1) 

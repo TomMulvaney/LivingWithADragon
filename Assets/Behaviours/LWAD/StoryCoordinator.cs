@@ -49,6 +49,9 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	[SerializeField]
 	private bool m_textScaleTweens;
 
+	[SerializeField]
+	private GameObject m_transitionScreen;
+
 	int m_currentPage = 1;
 	int m_currentChapterStart = 1;
 
@@ -150,6 +153,28 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 #endif
 	}
 
+	IEnumerator Start()
+	{
+		yield return StartCoroutine (StoryInfo.WaitForInstance());
+		
+		//Debug.Log (String.Format("{0}_{1}_{2}", StoryInfo.Instance.GetTitle(), m_currentPage, m_emotion.ToString()));
+		
+		PlayCute ();
+		
+		StartCoroutine(ChangeBoth (FindStoryPage ()));
+
+		yield return new WaitForSeconds(0.75f);
+
+		Hashtable tweenArgs = new Hashtable ();
+		//tweenArgs.Add ("amount", new Vector3(20, 0, 0));
+		tweenArgs.Add ("position", new Vector3 (2200, 0, 0));
+		tweenArgs.Add ("islocal", true);
+		tweenArgs.Add ("time", 1.2f);
+
+		iTween.MoveTo (m_transitionScreen, tweenArgs);
+		//iTween.MoveBy (m_transitionScreen, tweenArgs);
+	}
+
 	void OnPressAudio(MyButton button)
 	{
 		if (m_audioSource.isPlaying) 
@@ -190,17 +215,6 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	void TextCam(bool enable)
 	{
 		m_textCamera.enabled = enable;
-	}
-
-	IEnumerator Start()
-	{
-		yield return StartCoroutine (StoryInfo.WaitForInstance());
-
-		//Debug.Log (String.Format("{0}_{1}_{2}", StoryInfo.Instance.GetTitle(), m_currentPage, m_emotion.ToString()));
-
-		PlayCute ();
-
-		StartCoroutine(ChangeBoth (FindStoryPage ()));
 	}
 
 	IEnumerator ChangeBoth(StoryPage page)
@@ -358,7 +372,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	{
 		if (m_currentPage == m_firstChapterEnd) 
 		{
-			m_emotion = Emotion.Cute;
+			m_emotion = Emotion.Fun;
 		}
 
 		--m_currentPage;

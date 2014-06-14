@@ -29,7 +29,7 @@ public class StoryPage : MonoBehaviour
 		return m_background;
 	}
 
-	public AudioClip()
+	public AudioClip GetAudio()
 	{
 		return m_audio;
 	}

@@ -3,6 +3,7 @@ using System.Collections;
 
 public class StoryPage : MonoBehaviour 
 {
+	// Images are kept in separate variables instead of an array so that the people creating the prefabs are less likely to make mistakes
 	[SerializeField]
 	private Texture2D m_foreground;
 	[SerializeField]
@@ -37,5 +38,15 @@ public class StoryPage : MonoBehaviour
 	public string GetText()
 	{
 		return m_text;
+	}
+
+	public bool IsEmpty()
+	{
+		return !HasImages() && m_audio == null && System.String.IsNullOrEmpty(m_text);
+	}
+
+	public bool HasImages()
+	{
+		return m_foreground != null && m_midground != null && m_background != null;
 	}
 }

@@ -90,6 +90,28 @@ public class MyButton : MonoBehaviour
     
 
     // Shared Methods
+	float m_fadeTweenDuration = 0.2f;
+
+	public void Off(bool instant)
+	{
+		collider.enabled = false;
+
+		if (instant) 
+		{
+			m_pressableButton.color = new Color(m_pressableButton.color.r, m_pressableButton.color.g, m_pressableButton.color.b, 0);
+		} 
+		else 
+		{
+			iTween.ColorTo (m_pressableButton.gameObject, new Color (m_pressableButton.color.r, m_pressableButton.color.g, m_pressableButton.color.b, 0), StoryInfo.fadeDuration);
+		}
+	}
+
+	public void On()
+	{
+		collider.enabled = false;
+		iTween.ColorTo (m_pressableButton.gameObject, new Color (1, 1, 1, 1), StoryInfo.fadeDuration);
+	}
+
     public void AddPressedAudio(string audioEvent)
     {
         m_pressedAudio.Add(audioEvent);

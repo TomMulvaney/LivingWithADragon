@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System;
+using System.Text.RegularExpressions;
 
 public class StoryCoordinator : Singleton<StoryCoordinator>
 {
@@ -21,6 +22,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private UILabel m_textLabel;
 	[SerializeField]
 	private TurnSwipeDetect m_swipeDetect;
+	[SerializeField]
+	private MyButton m_goToEmotionButton;
 
 	[SerializeField]
 	private UICamera m_emotionCamera;
@@ -28,6 +31,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private UIPanel m_emotionPanel;
 	[SerializeField]
 	private MyButton[] m_emotionButtons;
+	[SerializeField]
+	private MyButton m_backButton;
 
 	[SerializeField]
 	private AudioSource m_audioSource;
@@ -36,6 +41,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	int m_currentChapterStart = 1;
 
 	bool m_isChoosingEmotion = false;
+
+	float m_fadeInDelay = 0.2f;
 
 	enum Emotion
 	{
@@ -55,6 +62,15 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	{
 		m_swipeDetect.SwipedLeft += OnSwipeLeft;
 		m_swipeDetect.SwipedRight += OnSwipeRight;
+
+		m_backButton.Unpressing += OnPressBack;
+
+		m_goToEmotionButton.Unpressing += OnClickGoToEmotion;
+
+		foreach (MyButton button in m_emotionButtons) 
+		{
+			button.Unpressing += OnChooseEmotion;
+		}
 
 		m_emotionPanel.alpha = 0;
 		EmotionCam (false);
@@ -89,25 +105,79 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		yield return StartCoroutine (StoryInfo.WaitForInstance());
 
 		//Debug.Log (String.Format("{0}_{1}_{2}", StoryInfo.Instance.GetTitle(), m_currentPage, m_emotion.ToString()));
-		ChangePage (FindStoryPage ());
+		ChangeBoth (FindStoryPage ());
 	}
 
-	void ChangePage(StoryPage page)
+	void ChangeBoth(StoryPage page)
 	{
-		Debug.Log ("ChangePage(): " + page);
+		StartCoroutine(ChangeImage (page));
+		StartCoroutine(ChangeText (page));
+	}
+
+	IEnumerator ChangeText(StoryPage page)
+	{
+		Debug.Log("page: " + page);
+
 		if (page != null) 
 		{
-			if (page.HasImages ()) 
+			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
+			
+			yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+
+			m_textLabel.text = page.GetText ();
+
+			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+		}
+
+		yield break;
+	}
+
+	IEnumerator ChangeImage(StoryPage page)
+	{
+		if (page != null)
+		{
+			if (page.HasImages ())
 			{
-				m_foreground.mainTexture = page.GetForeground ();
+				bool hasFaded = false;
+
+				Texture2D newForegroundTex = page.GetForeground();
+
+				if(m_foreground.mainTexture != newForegroundTex && m_foreground.mainTexture != null)
+				{
+					hasFaded = true;
+					TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 0);
+					yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+				}
+
+				m_foreground.mainTexture = newForegroundTex;
 				m_midground.mainTexture = page.GetMidground ();
 				m_background.mainTexture = page.GetBackground ();
 
-				m_currentChapterStart = m_currentPage;
+				if(hasFaded)
+				{
+					TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 1);
+				}
+
+				string pageNum = Regex.Match(page.gameObject.name, @"\d+").Value;
+
+				try
+				{
+					m_currentChapterStart = Convert.ToInt32(pageNum);
+				}
+				catch
+				{
+					m_currentChapterStart = 1;
+				}
 			}
-				
-			m_textLabel.text = page.GetText ();
 		}
+
+		yield break;
+	}
+
+	void OnClickGoToEmotion(MyButton button)
+	{
+		m_currentPage = m_currentChapterStart - 1;
+		StartCoroutine(GoEmotionSelect ());
 	}
 
 	IEnumerator GoEmotionSelect()
@@ -123,49 +193,150 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		EmotionCam (true);
 	}
+
+	void OnPressBack(MyButton button)
+	{
+		Debug.Log ("PRESSED BACK");
+
+		--m_currentPage;
+
+		StoryPage page = FindStoryPage ();
+
+		StartCoroutine(ChangeText (page));
+
+		int imagePage = m_currentPage;
+		while (!page.HasImages() && imagePage > 0)
+		{
+			--imagePage;
+			page = FindStoryPage(imagePage);
+		}
+
+		StartCoroutine(ChangeImage (page));
+
+		StartCoroutine (GoStoryPage ());
+	}
 	
 	void OnChooseEmotion(MyButton button)
 	{
 		m_emotion = (Emotion)button.GetInt();
+
+		++m_currentPage;
+
+		ChangeBoth (FindStoryPage ());
+
+		StartCoroutine (GoStoryPage ());
+	}
+
+	IEnumerator GoStoryPage()
+	{
+		EmotionCam (false);
+		
+		TweenAlpha.Begin (m_emotionPanel.gameObject, StoryInfo.fadeDuration, 0);
+		
+		yield return new WaitForSeconds (StoryInfo.fadeDuration);
+		
+		TweenAlpha.Begin (m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+		
+		yield return new WaitForSeconds (StoryInfo.fadeDuration);
+		
+		TextCam (true);
 	}
 
 	void OnSwipeLeft(TurnSwipeDetect swipeDetect)
 	{
-		--m_currentPage;
+		++m_currentPage;
 		StartCoroutine (TurnPage ());
 	}
 
 	void OnSwipeRight(TurnSwipeDetect swipeDetect)
 	{
-		++m_currentPage;
-		StartCoroutine (TurnPage ());
+		--m_currentPage;
+
+		if (m_currentPage < 1) 
+		{
+			m_currentPage = 1;
+		} 
+		else 
+		{
+			StartCoroutine (TurnPage ());
+		}
 	}
 
 	IEnumerator TurnPage()
 	{
 		StoryPage page = FindStoryPage ();
 
-		if (page != null) 
+		if(page == null)
 		{
-			if (page.IsEmpty ()) 
-			{
-				++m_currentPage;
-				StartCoroutine (GoEmotionSelect ());
-			} 
-			else 
-			{
-				ChangePage (page);
-			}
+			StartCoroutine (GoEmotionSelect ());
+		}
+		else 
+		{
+			ChangeBoth(page);
 		}
 
 		yield break;
 	}
 
-	StoryPage FindStoryPage()
+	StoryPage FindStoryPage(int index = -1)
 	{
-		string goName = String.Format ("{0}_{1}_{2}", StoryInfo.Instance.GetTitle (), m_currentPage, m_emotion.ToString ()).ToLower ();
+		if (index == -1) 
+		{
+			index = m_currentPage;
+		}
+
+		string goName = String.Format ("{0}_{1}_{2}", StoryInfo.Instance.GetTitle (), index, m_emotion.ToString ()).ToLower ();
 		Debug.Log ("Finding: " + goName);
 		GameObject go = Resources.Load<GameObject>(goName);
+
+		if (go == null) 
+		{
+			go = Resources.Load<GameObject>(String.Format ("{0}_{1}", StoryInfo.Instance.GetTitle (), index).ToLower());
+		}
+
 		return go != null ? (StoryPage)go.GetComponent<StoryPage>() : null;
 	}
+
+	void OnGUI()
+	{
+		GUILayout.Label ("Page: " + m_currentPage);
+		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
+	}
+
+	/*
+	IEnumerator ChangePage(StoryPage page)
+	{
+		Debug.Log ("ChangePage(): " + page);
+		if (page != null) 
+		{
+			if (page.HasImages ()) 
+			{
+				if(m_foreground.mainTexture != null)
+				{
+					TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 0);
+				}
+
+				m_currentChapterStart = m_currentPage;
+			}
+				
+			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
+
+			yield return new WaitForSeconds(StoryInfo.fadeDuration + 0.2f);
+
+			m_textLabel.text = page.GetText ();
+
+			if(page.HasImages())
+			{
+				m_foreground.mainTexture = page.GetForeground ();
+				m_midground.mainTexture = page.GetMidground ();
+				m_background.mainTexture = page.GetBackground ();
+			}
+
+			TweenAlpha.Begin(m_imagePanel.gameObject, StoryInfo.fadeDuration, 1);
+			TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+		}
+
+		yield break;
+	}
+	*/
 }

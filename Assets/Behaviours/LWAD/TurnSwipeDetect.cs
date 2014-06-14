@@ -17,7 +17,6 @@ public class TurnSwipeDetect : MonoBehaviour
 
     void OnPress(bool press)
     {
-		Debug.Log ("TurnSwipeDetect.OnPress(" + press + ")");
         if (press)
         {
             m_dragStartTime = AudioSettings.dspTime;

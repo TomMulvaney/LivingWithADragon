@@ -8,6 +8,15 @@ public class LoadSceneOnClick : MonoBehaviour
 
 	void OnClick()
 	{
-		Application.LoadLevel (m_sceneName);
+		StartCoroutine(Wait());
 	}
+
+	IEnumerator Wait()
+	{
+		yield return new WaitForSeconds(0.6f);
+
+		Application.LoadLevel (m_sceneName);
+
+	}
+
 }

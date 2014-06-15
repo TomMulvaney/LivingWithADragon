@@ -14,6 +14,8 @@ public class StoryPage : MonoBehaviour
 	private AudioClip m_audio;
 	[SerializeField]
 	private string m_text;
+	[SerializeField]
+	private bool m_isLastPage;
 
 	public Texture2D GetForeground()
 	{
@@ -48,5 +50,10 @@ public class StoryPage : MonoBehaviour
 	public bool HasImages()
 	{
 		return m_foreground != null && m_midground != null && m_background != null;
+	}
+
+	public bool IsLastPage()
+	{
+		return m_isLastPage;
 	}
 }

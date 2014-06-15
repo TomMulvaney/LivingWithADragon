@@ -44,6 +44,12 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private MyButton[] m_emotionButtons;
 	[SerializeField]
 	private MyButton m_backButton;
+	[SerializeField]
+	private UITexture m_wordWidget;
+	[SerializeField]
+	private Texture2D m_nextChapterTexture;
+	[SerializeField]
+	private Texture2D m_chooseEmotionTexture;
 
 	[SerializeField]
 	private AudioSource m_audioSource;
@@ -54,6 +60,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private bool m_textScaleTweens;
 
 	[SerializeField]
+	private MyButton m_mainMenuButton;
+	[SerializeField]
 	private GameObject m_transitionScreen;
 
 	int m_currentPage = 1;
@@ -63,6 +71,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	bool m_isChoosingEmotion = false;
 
 	float m_fadeInDelay = 0.2f;
+
+	float m_transitionTweenDuration = 1.2f;
 
 	enum Emotion
 	{
@@ -77,6 +87,22 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	[SerializeField]
 	private bool m_startOnEmotions;
 #endif
+
+	void PlayAudio()
+	{
+		switch (m_emotion)
+		{
+		case Emotion.Fun:
+			PlayFun();
+			break;
+		case Emotion.Scary:
+			PlayScary();
+			break;
+		case Emotion.Cute:
+			PlayCute();
+			break;
+		}
+	}
 
 	void PlayFun()
 	{
@@ -130,6 +156,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		m_goToEmotionButton.Off (true);
 
+		m_mainMenuButton.Unpressing += OnClickMainMenu;
+
 		m_swipeDetect.SwipedLeft += OnSwipeLeft;
 		m_swipeDetect.SwipedRight += OnSwipeRight;
 
@@ -137,7 +165,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		m_goToEmotionButton.Unpressing += OnClickGoToEmotion;
 
-		m_audioButton.Unpressing += OnPressAudio;
+		m_audioButton.Unpressing += OnPressVocalAudio;
 
 		foreach (MyButton button in m_emotionButtons) 
 		{
@@ -168,7 +196,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		
 		//Debug.Log (String.Format("{0}_{1}_{2}", StoryInfo.Instance.GetTitle(), m_currentPage, m_emotion.ToString()));
 		
-		PlayCute ();
+		PlayFun ();
 		
 		StartCoroutine(ChangeBoth (FindStoryPage ()));
 
@@ -178,17 +206,17 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		//tweenArgs.Add ("amount", new Vector3(20, 0, 0));
 		tweenArgs.Add ("position", new Vector3 (2200, 0, 0));
 		tweenArgs.Add ("islocal", true);
-		tweenArgs.Add ("time", 1.2f);
+		tweenArgs.Add ("time", m_transitionTweenDuration);
 
 		iTween.MoveTo (m_transitionScreen, tweenArgs);
 		//iTween.MoveBy (m_transitionScreen, tweenArgs);
 	}
 
-	void OnPressAudio(MyButton button)
+	void OnPressVocalAudio(MyButton button)
 	{
 		if (m_audioSource.isPlaying) 
 		{
-			StopAudio();
+			StopVocalAudio();
 		}
 		else if (m_audioSource.clip != null) 
 		{
@@ -198,7 +226,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		}
 	}
 
-	void StopAudio()
+	void StopVocalAudio()
 	{
 		m_audioSource.Stop();
 		StopCoroutine ("UpdateAudioBar");
@@ -270,45 +298,15 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		{
 			m_audioSource.clip = page.GetAudio();
 
-			bool enableAudioButton = m_audioSource.clip != null;
-
-			m_audioButton.EnableCollider(enableAudioButton);
-
 			if(m_textScaleTweens)
 			{
-				Vector3 audioButtonScale = enableAudioButton ? Vector3.one : Vector3.zero;
-
-				if(!enableAudioButton)
-				{
-					TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
-				}
-
 				TweenScale.Begin(m_textLabel.gameObject, StoryInfo.scaleDuration, Vector3.zero);
-
 				yield return new WaitForSeconds(StoryInfo.scaleDuration + m_fadeInDelay);
-
-				if(enableAudioButton)
-				{
-					TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
-				}
 			}
 			else
 			{
-				float audioPanelAlpha = enableAudioButton ? 1 : 0;
-
-				if(!enableAudioButton)
-				{
-					TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
-				}
-				
 				TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
-
 				yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
-
-				if(enableAudioButton)
-				{
-					TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
-				}
 			}
 			
 			m_textLabel.text = page.GetText ();
@@ -329,7 +327,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	void SetNextEmotionChoice()
 	{
 		int nextEmotionChoice = m_currentPage + 1;
-		while (FindStoryPage(nextEmotionChoice) != null) 
+		while (FindStoryPage(nextEmotionChoice) != null && !FindStoryPage(nextEmotionChoice).IsLastPage()) 
 		{
 			++nextEmotionChoice;
 		}
@@ -388,25 +386,37 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 				string pageNum = Regex.Match(page.gameObject.name, @"\d+").Value;
 
-				try
+				if(!page.IsLastPage())
 				{
-					m_currentChapterStart = Convert.ToInt32(pageNum);
+					try
+					{
+						m_currentChapterStart = Convert.ToInt32(pageNum);
+					}
+					catch
+					{
+						m_currentChapterStart = 1;
+					}
 				}
-				catch
+				else
 				{
-					m_currentChapterStart = 1;
+					PlayCute();
 				}
 			}
-		}
 
-		RefreshPageCounters();
+			if(!page.IsLastPage())
+			{
+				RefreshPageCounters();
+			}
+		}
 
 		yield break;
 	}
 
 	void OnClickGoToEmotion(MyButton button)
 	{
-		StopAudio ();
+		StopVocalAudio ();
+
+		m_wordWidget.mainTexture = m_chooseEmotionTexture;
 
 		m_currentPage = m_currentChapterStart - 1;
 		StartCoroutine(GoEmotionSelect ());
@@ -469,18 +479,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	{
 		m_emotion = (Emotion)button.GetInt();
 
-		switch (m_emotion)
-		{
-		case Emotion.Fun:
-			PlayFun();
-			break;
-		case Emotion.Scary:
-			PlayScary();
-			break;
-		case Emotion.Cute:
-			PlayCute();
-			break;
-		}
+		PlayAudio ();
 
 		StartCoroutine (OnChooseEmotionCo ());
 	}
@@ -500,6 +499,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	IEnumerator GoStoryPage()
 	{
+		TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, 1);
+
 		if (m_currentChapterStart > 1) 
 		{
 			m_goToEmotionButton.On ();
@@ -520,7 +521,9 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void OnSwipeLeft(TurnSwipeDetect swipeDetect)
 	{
-		StopAudio ();
+		StopVocalAudio ();
+
+		m_wordWidget.mainTexture = m_nextChapterTexture;
 
 		if (!IsLastPage ()) 
 		{
@@ -531,7 +534,9 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void OnSwipeRight(TurnSwipeDetect swipeDetect)
 	{
-		StopAudio ();
+		StopVocalAudio ();
+
+		m_wordWidget.mainTexture = m_chooseEmotionTexture;
 
 		--m_currentPage;
 
@@ -541,6 +546,37 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		} 
 		else 
 		{
+			int index = m_currentPage + 1;
+			StoryPage page = FindStoryPage(index);
+
+			//Debug.LogWarning("name: " + page.gameObject.name);
+			//Debug.LogWarning("hasImages: " + page.HasImages());
+			//Debug.LogWarning("isLastPage: " + page.IsLastPage());
+
+			if(page.IsLastPage())
+			{
+				--index;
+				page = FindStoryPage(index);
+
+				//Debug.LogWarning("name: " + page.gameObject.name);
+				//Debug.LogWarning("hasImages: " + page.HasImages());
+				//Debug.LogWarning("isLastPage: " + page.IsLastPage());
+
+				while(!page.HasImages())
+				{
+					//Debug.LogWarning("CHECK");
+					--index;
+					page = FindStoryPage(index);
+				}
+
+				//Debug.LogWarning("FOUND");
+				//Debug.LogWarning("name: " + page.gameObject.name);
+				//Debug.LogWarning("hasImages: " + page.HasImages());
+				//Debug.LogWarning("isLastPage: " + page.IsLastPage());
+
+				StartCoroutine(ChangeImage(page));
+			}
+
 			StartCoroutine (TurnPage ());
 		}
 	}
@@ -556,10 +592,36 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 				m_hasEndedChapter = true;
 				m_firstChapterEnd = m_currentPage;
 			}
+
 			StartCoroutine (GoEmotionSelect ());
 		}
 		else 
 		{
+			if (!page.IsLastPage()) 
+			{
+				PlayAudio ();
+
+				m_goToEmotionButton.On();
+				m_audioButton.On();
+				foreach(UISprite counter in m_pageCounters)
+				{
+					TweenAlpha.Begin(counter.gameObject, StoryInfo.fadeDuration, 1);
+				}
+			}
+			else
+			{
+				m_goToEmotionButton.Off(false);
+				m_audioButton.Off(false);
+				foreach(UISprite counter in m_pageCounters)
+				{
+					TweenAlpha.Begin(counter.gameObject, StoryInfo.fadeDuration, 0);
+				}
+			}
+
+			//Debug.Log("isLastPage: " + page.IsLastPage());
+
+
+
 			StartCoroutine(ChangeBoth(page));
 		}
 
@@ -590,12 +652,105 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		return FindStoryPage(m_currentPage + 1) == null && FindStoryPage(m_currentPage + 2) == null;
 	}
 
+	void OnClickMainMenu(MyButton button)
+	{
+		StartCoroutine (EndScene ());
+	}
 
+	IEnumerator EndScene()
+	{
+		Hashtable tweenArgs = new Hashtable ();
+		tweenArgs.Add ("position", Vector3.zero);
+		tweenArgs.Add ("islocal", true);
+		tweenArgs.Add ("time", m_transitionTweenDuration / 2);
+		
+		iTween.MoveTo (m_transitionScreen, tweenArgs);
+
+		yield return new WaitForSeconds((m_transitionTweenDuration / 2) + 0.1f);
+
+		Application.LoadLevel ("Loading");
+	}
+
+	/*
 	void OnGUI()
 	{
 		GUILayout.Label ("Page: " + m_currentPage);
 		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
 		GUILayout.Label ("NextEmotionChoice: " + m_nextEmotionChoice);
 	}
+	*/
 
+	/*
+	IEnumerator ChangeText(StoryPage page)
+	{
+		Debug.Log("page: " + page);
+		
+		if (page != null) 
+		{
+			m_audioSource.clip = page.GetAudio();
+			
+			bool enableAudioButton = m_audioSource.clip != null;
+			
+			m_audioButton.EnableCollider(enableAudioButton);
+			
+			if(m_textScaleTweens)
+			{
+
+				Vector3 audioButtonScale = enableAudioButton ? Vector3.one : Vector3.zero;
+
+				if(!enableAudioButton)
+				{
+					TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
+				}
+
+				
+				TweenScale.Begin(m_textLabel.gameObject, StoryInfo.scaleDuration, Vector3.zero);
+				
+				yield return new WaitForSeconds(StoryInfo.scaleDuration + m_fadeInDelay);
+				
+
+				if(enableAudioButton)
+				{
+					TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
+				}
+
+			}
+			else
+			{
+
+				float audioPanelAlpha = enableAudioButton ? 1 : 0;
+
+				if(!enableAudioButton)
+				{
+					TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+				}
+
+				
+				TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
+				
+				yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+				
+
+				if(enableAudioButton)
+				{
+					TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+				}
+
+			}
+			
+			m_textLabel.text = page.GetText ();
+			
+			if(m_textScaleTweens)
+			{
+				TweenScale.Begin(m_textLabel.gameObject, StoryInfo.fadeDuration, Vector3.one);
+			}
+			else
+			{
+				TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 1);
+			}
+		}
+		
+		yield break;
+	}
+	*/
 }

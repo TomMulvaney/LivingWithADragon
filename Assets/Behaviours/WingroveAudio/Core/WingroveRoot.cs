@@ -8,6 +8,14 @@ namespace WingroveAudio
     public class WingroveRoot : MonoBehaviour
     {
 
+		public static IEnumerator WaitForInstance()
+		{
+			while (Instance == null)
+			{
+				yield return null;
+			}
+		}
+
         static WingroveRoot s_instance;
         [SerializeField]
         private bool m_useDecibelScale = true;

@@ -64,6 +64,9 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	[SerializeField]
 	private GameObject m_transitionScreen;
 
+	[SerializeField]
+	private UIPanel m_lastPagePanel;
+
 	int m_currentPage = 1;
 	int m_currentChapterStart = 1;
 	int m_nextEmotionChoice;
@@ -150,6 +153,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void Awake()
 	{
+		TweenAlpha.Begin(m_lastPagePanel.gameObject, 0, 0);
+
 		m_pageCountGrid.Reposition ();
 
 		//m_transitionScreen.SetActive (true);
@@ -597,6 +602,9 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		}
 		else 
 		{
+			float lastPageSpriteAlpha = page.IsLastPage() ? 1 : 0;
+			TweenAlpha.Begin(m_lastPagePanel.gameObject, StoryInfo.fadeDuration, lastPageSpriteAlpha);
+
 			if (!page.IsLastPage()) 
 			{
 				PlayAudio ();
@@ -663,6 +671,10 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	IEnumerator EndScene()
 	{
+		TweenAlpha.Begin (m_lastPagePanel.gameObject, StoryInfo.fadeDuration, 0);
+
+		yield return new WaitForSeconds (0.1f);
+
 		Hashtable tweenArgs = new Hashtable ();
 		tweenArgs.Add ("position", Vector3.zero);
 		tweenArgs.Add ("islocal", true);

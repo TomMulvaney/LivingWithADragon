@@ -601,7 +601,11 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 			{
 				PlayAudio ();
 
-				m_goToEmotionButton.On();
+				if(m_currentChapterStart > 1)
+				{
+					m_goToEmotionButton.On();
+				}
+
 				m_audioButton.On();
 				foreach(UISprite counter in m_pageCounters)
 				{
@@ -671,14 +675,14 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		Application.LoadLevel ("MainMenu");
 	}
 
-	/*
+
 	void OnGUI()
 	{
 		GUILayout.Label ("Page: " + m_currentPage);
 		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
 		GUILayout.Label ("NextEmotionChoice: " + m_nextEmotionChoice);
 	}
-	*/
+
 
 	/*
 	IEnumerator ChangeText(StoryPage page)

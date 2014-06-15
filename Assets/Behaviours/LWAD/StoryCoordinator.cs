@@ -668,7 +668,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 		yield return new WaitForSeconds((m_transitionTweenDuration / 2) + 0.1f);
 
-		Application.LoadLevel ("Loading");
+		Application.LoadLevel ("MainMenu");
 	}
 
 	/*

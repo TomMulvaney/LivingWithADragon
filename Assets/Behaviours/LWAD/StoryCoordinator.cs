@@ -24,6 +24,10 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	private TurnSwipeDetect m_swipeDetect;
 	[SerializeField]
 	private MyButton m_goToEmotionButton;
+	[SerializeField]
+	private UIGrid m_pageCountGrid;
+	[SerializeField]
+	private UISprite[] m_pageCounters;
 
 	[SerializeField]
 	private UIPanel m_audioPanel;
@@ -54,6 +58,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	int m_currentPage = 1;
 	int m_currentChapterStart = 1;
+	int m_nextEmotionChoice;
 
 	bool m_isChoosingEmotion = false;
 
@@ -119,7 +124,9 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void Awake()
 	{
-		m_transitionScreen.SetActive (true);
+		m_pageCountGrid.Reposition ();
+
+		//m_transitionScreen.SetActive (true);
 
 		m_goToEmotionButton.Off (true);
 
@@ -219,6 +226,36 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		m_textCamera.enabled = enable;
 	}
 
+	void RefreshPageCounters()
+	{
+		SetNextEmotionChoice (); 
+
+		Array.Sort (m_pageCounters, CollectionHelpers.CompareLocalPosX);
+
+		int numPageCounters = m_nextEmotionChoice - m_currentChapterStart;
+		int numCompleted = m_currentPage - m_currentChapterStart + 1;
+
+		Debug.Log ("numPageCounters: " + numPageCounters);
+		Debug.Log ("numCompleted: " + numCompleted);
+
+		for (int i = 0; i < m_pageCounters.Length; ++i) 
+		{
+			m_pageCounters[i].gameObject.SetActive(i < numPageCounters);
+			m_pageCounters[i].spriteName = i < numCompleted ? "button_navigation_selected_24" : "button_navigation_nonselected_23";
+		}
+
+		float gridLocalPosX = -numPageCounters * m_pageCountGrid.cellWidth / 2;
+		if (numPageCounters % 2 == 0) 
+		{
+			gridLocalPosX += m_pageCountGrid.cellWidth / 2;
+		}
+
+
+		m_pageCountGrid.transform.localPosition = new Vector3 (gridLocalPosX, m_pageCountGrid.transform.localPosition.y, m_pageCountGrid.transform.localPosition.z);
+
+		m_pageCountGrid.Reposition ();
+	}
+
 	IEnumerator ChangeBoth(StoryPage page)
 	{
 		StartCoroutine(ChangeText (page));
@@ -289,6 +326,17 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		yield break;
 	}
 
+	void SetNextEmotionChoice()
+	{
+		int nextEmotionChoice = m_currentPage + 1;
+		while (FindStoryPage(nextEmotionChoice) != null) 
+		{
+			++nextEmotionChoice;
+		}
+		
+		m_nextEmotionChoice = nextEmotionChoice;
+	}
+
 	void ScaleImages(Vector3 scale)
 	{
 		TweenScale.Begin (m_foreground.gameObject, StoryInfo.scaleDuration, scale);
@@ -350,6 +398,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 				}
 			}
 		}
+
+		RefreshPageCounters();
 
 		yield break;
 	}
@@ -540,11 +590,12 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		return FindStoryPage(m_currentPage + 1) == null && FindStoryPage(m_currentPage + 2) == null;
 	}
 
-	/*
+
 	void OnGUI()
 	{
 		GUILayout.Label ("Page: " + m_currentPage);
 		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
+		GUILayout.Label ("NextEmotionChoice: " + m_nextEmotionChoice);
 	}
-	*/
+
 }

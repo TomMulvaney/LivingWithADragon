@@ -119,6 +119,8 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	void Awake()
 	{
+		m_transitionScreen.SetActive (true);
+
 		m_goToEmotionButton.Off (true);
 
 		m_swipeDetect.SwipedLeft += OnSwipeLeft;
@@ -238,20 +240,38 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 			if(m_textScaleTweens)
 			{
 				Vector3 audioButtonScale = enableAudioButton ? Vector3.one : Vector3.zero;
-				TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
-				
+
+				if(!enableAudioButton)
+				{
+					TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
+				}
+
 				TweenScale.Begin(m_textLabel.gameObject, StoryInfo.scaleDuration, Vector3.zero);
 
 				yield return new WaitForSeconds(StoryInfo.scaleDuration + m_fadeInDelay);
+
+				if(enableAudioButton)
+				{
+					TweenScale.Begin(m_audioButton.gameObject, StoryInfo.scaleDuration, audioButtonScale);
+				}
 			}
 			else
 			{
 				float audioPanelAlpha = enableAudioButton ? 1 : 0;
-				TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+
+				if(!enableAudioButton)
+				{
+					TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+				}
 				
 				TweenAlpha.Begin(m_textPanel.gameObject, StoryInfo.fadeDuration, 0);
 
 				yield return new WaitForSeconds(StoryInfo.fadeDuration + m_fadeInDelay);
+
+				if(enableAudioButton)
+				{
+					TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, audioPanelAlpha);
+				}
 			}
 			
 			m_textLabel.text = page.GetText ();
@@ -344,6 +364,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 
 	IEnumerator GoEmotionSelect()
 	{
+		TweenAlpha.Begin(m_audioPanel.gameObject, StoryInfo.fadeDuration, 0);
 		m_goToEmotionButton.Off (false);
 
 		TextCam (false);
@@ -373,6 +394,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		if (m_currentPage == m_firstChapterEnd) 
 		{
 			m_emotion = Emotion.Fun;
+			PlayFun();
 		}
 
 		--m_currentPage;
@@ -450,8 +472,11 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 	{
 		StopAudio ();
 
-		++m_currentPage;
-		StartCoroutine (TurnPage ());
+		if (!IsLastPage ()) 
+		{
+			++m_currentPage;
+			StartCoroutine (TurnPage ());
+		}
 	}
 
 	void OnSwipeRight(TurnSwipeDetect swipeDetect)
@@ -510,9 +535,16 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		return go != null ? (StoryPage)go.GetComponent<StoryPage>() : null;
 	}
 
+	bool IsLastPage()
+	{
+		return FindStoryPage(m_currentPage + 1) == null && FindStoryPage(m_currentPage + 2) == null;
+	}
+
+	/*
 	void OnGUI()
 	{
 		GUILayout.Label ("Page: " + m_currentPage);
 		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
 	}
+	*/
 }

@@ -81,7 +81,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		Cute
 	}
 
-	Emotion m_emotion = Emotion.Fun;
+	Emotion m_emotion = Emotion.Cute;
 
 #if UNITY_EDITOR
 	[SerializeField]
@@ -196,7 +196,7 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		
 		//Debug.Log (String.Format("{0}_{1}_{2}", StoryInfo.Instance.GetTitle(), m_currentPage, m_emotion.ToString()));
 		
-		PlayFun ();
+		PlayAudio ();
 		
 		StartCoroutine(ChangeBoth (FindStoryPage ()));
 
@@ -675,14 +675,14 @@ public class StoryCoordinator : Singleton<StoryCoordinator>
 		Application.LoadLevel ("MainMenu");
 	}
 
-
+	/*
 	void OnGUI()
 	{
 		GUILayout.Label ("Page: " + m_currentPage);
 		GUILayout.Label ("ChapterStart: " + m_currentChapterStart);
 		GUILayout.Label ("NextEmotionChoice: " + m_nextEmotionChoice);
 	}
-
+	*/
 
 	/*
 	IEnumerator ChangeText(StoryPage page)
